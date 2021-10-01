@@ -1,0 +1,21 @@
+{
+  "name": "loot-glass",
+  "version": "0.0.1",
+  "description": "A tool to quantify card attribute occurrence in NFT-Loot-based blockchain games",
+  "main": "src/loot-glass.ts",
+  "repository": "git@github.com:rodyce/loot-glass.git",
+  "author": "Rodimiro Cerrato E <rodyce@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./bin/loot-glass.js",
+    "dev": "ts-node ./src/loot-glass.ts"
+  },
+  "dependencies": {
+    "@types/node": "^16.10.2",
+    "typescript": "^4.4.3"
+  },
+  "devDependencies": {
+    "ts-node": "^10.2.1"
+  }
+}
