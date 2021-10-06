@@ -1,187 +1,56 @@
 import { providers } from "@0xsequence/multicall";
 import { ethers } from "ethers";
+import { type } from "os";
+import { LOOT_CONTRACT_ADDR, LOOT_CONTRACT_ABI } from "./constants/loot";
 
 require("dotenv").config();
 
-const LOOT_CONTRACT = "0xFF9C1b15B16263C61d017ee9F65C50e4AE0113D7";
+// A triple of [Token ID, attribute name, attribute value]
+// For example: [ 11, 'Hand', 'Ornate Gauntlets of Vitriol' ]
+type AttrInfoTriple = [number, string, string];
 
-const CONTRACT_ABI = [
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getChest",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getFoot",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getHand",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getHead",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getNeck",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getRing",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getWaist",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "getWeapon",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-];
-
-const LIMIT = 1000;
+const LIMIT = 100;
 
 const ALCHEMY_API_TOKEN = process.env.ALCHEMY_API_TOKEN;
 
+function getAttributeName(functionName: string) {
+  if (functionName.startsWith("get") && functionName.length > 3) {
+    return functionName.substring(3);
+  }
+  return functionName;
+}
+
 async function main() {
-  const ethersProvider = ethers.getDefaultProvider("mainnet", {
-    alchemy: ALCHEMY_API_TOKEN,
-  });
+  const ethersProvider = new ethers.providers.AlchemyProvider(
+    "homestead",
+    ALCHEMY_API_TOKEN
+  );
   const multicallProvider = new providers.MulticallProvider(ethersProvider);
   const loot = new ethers.Contract(
-    LOOT_CONTRACT,
-    CONTRACT_ABI,
+    LOOT_CONTRACT_ADDR,
+    LOOT_CONTRACT_ABI,
     multicallProvider
   );
 
-  const functionNames = CONTRACT_ABI.map((x) => x.name);
-  const attributes = functionNames.map((fname) => loot[fname](66));
+  const functionNames = LOOT_CONTRACT_ABI.map((x) => x.name);
+  const allAttributes: Promise<AttrInfoTriple>[] = [];
 
-  const attributeNames: string[] = await Promise.all(attributes);
-  for (const attrName of attributeNames) {
-    console.log(attrName);
+  for (let tokenId = 0; tokenId < LIMIT; tokenId++) {
+    const tokenIdTriples: Promise<AttrInfoTriple>[] = functionNames.map(
+      (fname) =>
+        new Promise(async (resolve) => {
+          const attrName = getAttributeName(fname);
+          const attrValue = await loot[fname](tokenId);
+          resolve([tokenId, attrName, attrValue]);
+        })
+    );
+
+    allAttributes.push(...tokenIdTriples);
   }
+
+  const allTriples: AttrInfoTriple[] = await Promise.all(allAttributes);
+
+  console.log(allTriples);
 }
 
 main();
