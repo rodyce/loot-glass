@@ -1,15 +1,28 @@
 import { providers } from "@0xsequence/multicall";
 import { ethers } from "ethers";
-import { type } from "os";
+import { createObjectCsvWriter } from "csv-writer";
+
 import { LOOT_CONTRACT_ADDR, LOOT_CONTRACT_ABI } from "./constants/loot";
 
 require("dotenv").config();
 
 // A triple of [Token ID, attribute name, attribute value]
 // For example: [ 11, 'Hand', 'Ornate Gauntlets of Vitriol' ]
-type AttrInfoTriple = [number, string, string];
+// type AttrInfoTriple = [number, string, string];
 
-const LIMIT = 100;
+type TokenRecord = {
+  tokenId: number;
+  attributeName: string;
+  attributeValue: string;
+};
+
+type TokenRecordHeader = {
+  id: string;
+  title: string;
+};
+
+// const LIMIT = 11_111;
+const LIMIT = 10;
 
 const ALCHEMY_API_TOKEN = process.env.ALCHEMY_API_TOKEN;
 
@@ -33,24 +46,62 @@ async function main() {
   );
 
   const functionNames = LOOT_CONTRACT_ABI.map((x) => x.name);
-  const allAttributes: Promise<AttrInfoTriple>[] = [];
+  const csvHeader: TokenRecordHeader[] = [
+    {
+      id: "tokenId",
+      title: "Token ID",
+    },
+    ...functionNames.map((fname) => {
+      return {
+        id: getAttributeName(fname),
+        title: getAttributeName(fname).toUpperCase(),
+      };
+    }),
+  ];
 
-  for (let tokenId = 0; tokenId < LIMIT; tokenId++) {
-    const tokenIdTriples: Promise<AttrInfoTriple>[] = functionNames.map(
+  const csvWriter = createObjectCsvWriter({
+    path: "deevy.csv",
+    header: csvHeader,
+    append: false,
+  });
+
+  const allAttributes: Promise<TokenRecord>[] = [];
+
+  for (let tokenId = 1; tokenId <= LIMIT; tokenId++) {
+    const tokenData: Promise<TokenRecord>[] = functionNames.map(
       (fname) =>
         new Promise(async (resolve) => {
-          const attrName = getAttributeName(fname);
-          const attrValue = await loot[fname](tokenId);
-          resolve([tokenId, attrName, attrValue]);
+          const attributeName = getAttributeName(fname);
+          // Invoke loot game contract.
+          const attributeValue = await loot[fname](tokenId);
+          resolve({ tokenId, attributeName, attributeValue });
         })
     );
 
-    allAttributes.push(...tokenIdTriples);
+    allAttributes.push(...tokenData);
   }
 
-  const allTriples: AttrInfoTriple[] = await Promise.all(allAttributes);
+  const allTokensData: TokenRecord[] = await Promise.all(allAttributes);
 
-  console.log(allTriples);
+  const csvRecords = [];
+  let lastTokenId = -1;
+  let record: Record<string, string> = {};
+  for (const { tokenId, attributeName, attributeValue } of allTokensData) {
+    if (lastTokenId === -1) {
+      lastTokenId = tokenId;
+      record = { tokenId: tokenId.toString() };
+    } else if (lastTokenId !== tokenId) {
+      lastTokenId = tokenId;
+      csvRecords.push(record);
+      record = { tokenId: tokenId.toString() };
+    }
+    record[attributeName] = attributeValue;
+  }
+  csvRecords.push(record);
+
+  console.log(csvRecords);
+  await csvWriter.writeRecords(csvRecords);
+  console.log("FINISHED!");
 }
 
 main();
