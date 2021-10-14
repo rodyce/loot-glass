@@ -22,7 +22,9 @@ type TokenRecordHeader = {
 };
 
 // const LIMIT = 11_111;
-const LIMIT = 10;
+const FROM_INDEX = 8001;
+const TO_INDEX = 11_111;
+const OUTPUT_FILE = `/home/rodyce/deevy_${FROM_INDEX}_${TO_INDEX}.csv`;
 
 const ALCHEMY_API_TOKEN = process.env.ALCHEMY_API_TOKEN;
 
@@ -60,14 +62,14 @@ async function main() {
   ];
 
   const csvWriter = createObjectCsvWriter({
-    path: "deevy.csv",
+    path: OUTPUT_FILE,
     header: csvHeader,
     append: false,
   });
 
   const allAttributes: Promise<TokenRecord>[] = [];
 
-  for (let tokenId = 1; tokenId <= LIMIT; tokenId++) {
+  for (let tokenId = FROM_INDEX; tokenId <= TO_INDEX; tokenId++) {
     const tokenData: Promise<TokenRecord>[] = functionNames.map(
       (fname) =>
         new Promise(async (resolve) => {
@@ -79,6 +81,9 @@ async function main() {
     );
 
     allAttributes.push(...tokenData);
+    if (tokenId % 100 === 0) {
+      console.log(`Just requested token id: ${tokenId}`);
+    }
   }
 
   const allTokensData: TokenRecord[] = await Promise.all(allAttributes);
