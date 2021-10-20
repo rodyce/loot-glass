@@ -10,6 +10,7 @@
     "build": "tsc",
     "start": "node ./bin/loot-glass.js",
     "loot-glass": "ts-node ./src/loot-glass.ts",
+    "deevy-glass": "ts-node ./src/deevy-glass.ts",
     "get-rarity": "ts-node ./src/get-rarity.ts"
   },
   "dependencies": {
